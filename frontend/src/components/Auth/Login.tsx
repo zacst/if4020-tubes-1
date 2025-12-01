@@ -3,6 +3,7 @@ import { colors } from '../../theme/colors';
 import { InputField } from './InputField';
 import { Button } from './Button';
 import { MessageCircle, Loader } from 'lucide-react';
+import { loginChallenge, loginVerify } from '../../utils/api'; // ✅ Import API functions
 import { 
   signMessage, 
   getStoredPrivateKey, 
@@ -76,69 +77,29 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => 
         privateKey = generatedKeyPair.privateKey;
       }
       
-      // Step 1: Get challenge from server
-      const challengeResponse = await fetch('http://localhost:3000/auth/login/challenge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username })
-      });
+      // Step 1: Get challenge from server using API utility
+      console.log('Requesting challenge from server...');
+      const challengeResponse = await loginChallenge(username);
+      const challengeData = challengeResponse.data;
 
-      let challengeResult;
-      const challengeText = await challengeResponse.text();
-      
-      try {
-        challengeResult = JSON.parse(challengeText);
-      } catch (parseError) {
-        console.error('Failed to parse challenge response:', challengeText);
-        throw new Error(`Server error: ${challengeText.substring(0, 100)}...`);
-      }
-
-      if (!challengeResponse.ok) {
-        if (challengeResponse.status === 404) {
-          throw new Error('User not found on server. Please register first.');
-        }
-        throw new Error(challengeResult.error || 'Failed to get challenge from server');
-      }
-
-      // Backend returns 'nonce', but we can handle 'challenge' too just in case
-      const challenge = challengeResult.nonce || challengeResult.challenge;
+      // Backend returns 'nonce', but we handle 'challenge' too just in case
+      const challenge = challengeData.nonce || challengeData.challenge;
       
       if (!challenge) {
         throw new Error('No challenge received from server');
       }
 
       // Step 2: Sign the challenge with our private key
-      console.log('Signing challenge with private key:', privateKey.substring(0, 20) + '...');
-
+      console.log('Signing challenge with private key...');
       // signMessage returns {r, s} object
       const signature = signMessage(challenge, privateKey);
-      console.log('Generated signature:', signature);
 
-      // Step 3: Send signature for verification
-      const loginResponse = await fetch('http://localhost:3000/auth/login/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          username, 
-          signature // Send the object {r, s} directly
-        })
-      });
+      // Step 3: Send signature for verification using API utility
+      console.log('Sending signature to server...');
+      const verifyResponse = await loginVerify(username, signature);
+      const verifyData = verifyResponse.data;
 
-      let loginResult;
-      const loginText = await loginResponse.text();
-      
-      try {
-        loginResult = JSON.parse(loginText);
-      } catch (parseError) {
-        console.error('Failed to parse login response:', loginText);
-        throw new Error(`Server error: ${loginText.substring(0, 100)}...`);
-      }
-
-      if (!loginResponse.ok) {
-        throw new Error(loginResult.error || `Login failed with status ${loginResponse.status}`);
-      }
-
-      const { token } = loginResult;
+      const { token } = verifyData;
       
       if (!token) {
         throw new Error('No authentication token received');
@@ -160,10 +121,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => 
       console.log('Login successful!');
       onLogin(username, token);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
+      // Handle Axios error structure or standard Error
+      const errorMessage = error.response?.data?.error || error.message || 'Login failed. Please try again.';
       setErrors({ 
-        general: error instanceof Error ? error.message : 'Login failed. Please try again.' 
+        general: errorMessage 
       });
     } finally {
       setIsLoggingIn(false);

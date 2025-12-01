@@ -3,6 +3,7 @@ import { colors } from "../../theme/colors";
 import { InputField } from "./InputField";
 import { Button } from "./Button";
 import { MessageCircle } from "lucide-react";
+import { register } from "../../utils/api"; // ✅ Import API function
 import { generateKeyPairFromPassword, storeKeyPair } from "../../utils/crypto";
 
 interface RegisterProps {
@@ -67,52 +68,33 @@ export const Register: React.FC<RegisterProps> = ({
       // Store keys locally first
       storeKeyPair(username, keyPair);
       
-      // Send registration request 
-      const response = await fetch('http://localhost:3000/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: username,
-          publicKey: keyPair.publicKey 
-        }),
-      });
-
-      let result;
-      const responseText = await response.text();
-      
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Failed to parse response:', responseText);
-        throw new Error(`Server returned invalid response: ${responseText.substring(0, 100)}...`);
-      }
-
-      if (!response.ok) {
-        // Clean up stored keys if registration failed
-        localStorage.removeItem(`chatApp_privateKey_${username}`);
-        localStorage.removeItem(`chatApp_publicKey_${username}`);
-        sessionStorage.removeItem('currentUser');
-        sessionStorage.removeItem('currentPrivateKey');
-        
-        throw new Error(result.error || `Registration failed with status ${response.status}`);
-      }
+      // Send registration request using API utility
+      // This automatically uses the correct BASE_URL
+      const response = await register(username, keyPair.publicKey);
+      const result = response.data;
 
       // Mark user as registered
       localStorage.setItem(`chatApp_hasRegistered_${username}`, 'true');
 
       // Show success message
-      alert(`Registration Successful!\n\nUsername: ${username}\nUser ID: ${result.userId}\n\nYou can now login with your username and password.`);
+      alert(`Registration Successful!\n\nUsername: ${username}\nUser ID: ${result.userId || 'Created'}\n\nYou can now login with your username and password.`);
       
       // Call the onRegister callback
       onRegister(username, keyPair.publicKey);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Registration error:", error);
+      // Handle Axios error structure
+      const errorMessage = error.response?.data?.error || error.message || "Registration failed. Please try again.";
       setErrors({ 
-        username: error instanceof Error ? error.message : "Registration failed. Please try again." 
+        username: errorMessage 
       });
+      
+      // Clean up stored keys if registration failed
+      localStorage.removeItem(`chatApp_privateKey_${username}`);
+      localStorage.removeItem(`chatApp_publicKey_${username}`);
+      sessionStorage.removeItem('currentUser');
+      sessionStorage.removeItem('currentPrivateKey');
     } finally {
       setIsGeneratingKeys(false);
     }
