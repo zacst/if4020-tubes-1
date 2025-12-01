@@ -1,26 +1,82 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Contact } from './types';
 import { colors } from './theme/colors';
-import { contacts, chatMessages } from './data/mock';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { ChatArea } from './components/Chat/ChatArea';
 import { Login } from './components/Auth/Login';
 import { Register } from './components/Auth/Register';
+import * as api from './utils/api';
+import { getCurrentUserKeyPair } from './utils/crypto';
 
 type AuthView = 'login' | 'register' | 'chat';
 
 const App: React.FC = () => {
   const [authView, setAuthView] = useState<AuthView>('login');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [currentUser, setCurrentUser] = useState<{username: string, privateKey: string, publicKey: string} | null>(null);
 
-  const handleLogin = (name: string, password: string) => {
-    console.log('Login:', { name, password });
-    setAuthView('chat');
+  // Check for existing session on load
+  useEffect(() => {
+    const token = sessionStorage.getItem('sessionToken');
+    const username = sessionStorage.getItem('currentUser');
+    
+    if (token && username) {
+      const keys = getCurrentUserKeyPair();
+      if (keys) {
+        setCurrentUser({ 
+          username, 
+          privateKey: keys.privateKey, 
+          publicKey: keys.publicKey 
+        });
+        setAuthView('chat');
+        fetchContacts();
+      }
+    }
+  }, []);
+
+  const handleLogin = (username: string, _token: string) => {
+    const keys = getCurrentUserKeyPair();
+    if (keys) {
+      setCurrentUser({ 
+        username, 
+        privateKey: keys.privateKey, 
+        publicKey: keys.publicKey 
+      });
+      setAuthView('chat');
+      fetchContacts();
+    } else {
+      console.error("Login successful but keys not found in storage");
+      // Should probably logout or show error
+    }
   };
 
-  const handleRegister = (name: string, password: string) => {
-    console.log('Register:', { name, password });
-    setAuthView('chat');
+  const handleRegister = (_username: string, _publicKey: string) => {
+    // Registration successful, switch to login
+    setAuthView('login');
+  };
+
+  const fetchContacts = async () => {
+    try {
+      const { data } = await api.getContacts();
+      const mappedContacts = data.map((c: any) => ({
+        id: c.id,
+        name: c.username,
+        publicKey: c.publicKey,
+        lastMessage: '',
+        time: '',
+        avatar: `https://ui-avatars.com/api/?name=${c.username}`
+      }));
+      setContacts(mappedContacts);
+    } catch (error) {
+      console.error("Failed to fetch contacts", error);
+    }
+  };
+
+  const handleLogout = () => {
+    sessionStorage.clear();
+    setCurrentUser(null);
+    setAuthView('login');
   };
 
   if (authView === 'login') {
@@ -33,8 +89,16 @@ const App: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'system-ui, -apple-system, sans-serif', backgroundColor: colors.bg.primary }}>
-      <Sidebar contacts={contacts} onSelectChat={setSelectedContact} />
-      <ChatArea contact={selectedContact} messages={chatMessages} />
+      <Sidebar 
+        contacts={contacts} 
+        onSelectChat={setSelectedContact} 
+        onAddContact={async (username) => {
+          await api.addContact(username);
+          fetchContacts();
+        }}
+        onLogout={handleLogout}
+      />
+      <ChatArea contact={selectedContact} currentUser={currentUser} />
     </div>
   );
 };

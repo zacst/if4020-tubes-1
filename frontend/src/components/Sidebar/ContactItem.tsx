@@ -25,8 +25,8 @@ export const ContactItem: React.FC<ContactItemProps> = ({ contact, onClick }) =>
         borderBottom: `1px solid ${colors.border}`,
       }}
     >
-      <div style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: colors.bg.tertiary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>
-        {contact.avatar}
+      <div style={{ width: '50px', height: '50px', borderRadius: '50%', backgroundColor: colors.bg.tertiary, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', overflow: 'hidden' }}>
+        <img src={contact.avatar} alt={contact.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       </div>
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>

@@ -3,9 +3,10 @@ import { colors } from "../../theme/colors";
 import { InputField } from "./InputField";
 import { Button } from "./Button";
 import { MessageCircle } from "lucide-react";
+import { generateKeyPairFromPassword, storeKeyPair } from "../../utils/crypto";
 
 interface RegisterProps {
-  onRegister: (username: string, password: string) => void;
+  onRegister: (username: string, publicKey: string) => void;
   onSwitchToLogin: () => void;
 }
 
@@ -16,6 +17,7 @@ export const Register: React.FC<RegisterProps> = ({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isGeneratingKeys, setIsGeneratingKeys] = useState(false);
   const [errors, setErrors] = useState<{
     username?: string;
     password?: string;
@@ -31,14 +33,16 @@ export const Register: React.FC<RegisterProps> = ({
 
     if (!username) {
       newErrors.username = "Username is required";
-    } else if (username.length < 5) {
-      newErrors.username = "Name must be at least 5 characters";
+    } else if (username.length < 3) {
+      newErrors.username = "Username must be at least 3 characters";
+    } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      newErrors.username = "Username can only contain letters, numbers, and underscores";
     }
 
     if (!password) {
       newErrors.password = "Password is required";
-    } else if (password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
+    } else if (password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters";
     }
 
     if (!confirmPassword) {
@@ -51,9 +55,66 @@ export const Register: React.FC<RegisterProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      onRegister(username, password);
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    setIsGeneratingKeys(true);
+    
+    try {
+      // Generate key pair from password
+      const keyPair = await generateKeyPairFromPassword(password);
+      
+      // Store keys locally first
+      storeKeyPair(username, keyPair);
+      
+      // Send registration request 
+      const response = await fetch('http://localhost:3000/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: username,
+          publicKey: keyPair.publicKey 
+        }),
+      });
+
+      let result;
+      const responseText = await response.text();
+      
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse response:', responseText);
+        throw new Error(`Server returned invalid response: ${responseText.substring(0, 100)}...`);
+      }
+
+      if (!response.ok) {
+        // Clean up stored keys if registration failed
+        localStorage.removeItem(`chatApp_privateKey_${username}`);
+        localStorage.removeItem(`chatApp_publicKey_${username}`);
+        sessionStorage.removeItem('currentUser');
+        sessionStorage.removeItem('currentPrivateKey');
+        
+        throw new Error(result.error || `Registration failed with status ${response.status}`);
+      }
+
+      // Mark user as registered
+      localStorage.setItem(`chatApp_hasRegistered_${username}`, 'true');
+
+      // Show success message
+      alert(`Registration Successful!\n\nUsername: ${username}\nUser ID: ${result.userId}\n\nYou can now login with your username and password.`);
+      
+      // Call the onRegister callback
+      onRegister(username, keyPair.publicKey);
+      
+    } catch (error) {
+      console.error("Registration error:", error);
+      setErrors({ 
+        username: error instanceof Error ? error.message : "Registration failed. Please try again." 
+      });
+    } finally {
+      setIsGeneratingKeys(false);
     }
   };
 
@@ -128,6 +189,7 @@ export const Register: React.FC<RegisterProps> = ({
             value={username}
             onChange={setUsername}
             error={errors.username}
+            disabled={isGeneratingKeys}
           />
 
           <InputField
@@ -136,6 +198,7 @@ export const Register: React.FC<RegisterProps> = ({
             value={password}
             onChange={setPassword}
             error={errors.password}
+            disabled={isGeneratingKeys}
           />
 
           <InputField
@@ -144,12 +207,14 @@ export const Register: React.FC<RegisterProps> = ({
             value={confirmPassword}
             onChange={setConfirmPassword}
             error={errors.confirmPassword}
+            disabled={isGeneratingKeys}
           />
 
           <Button
-            text="Create Account"
+            text={isGeneratingKeys ? "Registering..." : "Create Account"}
             onClick={handleSubmit}
             variant="primary"
+            disabled={isGeneratingKeys}
           />
 
           <div style={{ textAlign: "center", marginTop: "8px" }}>
@@ -172,27 +237,6 @@ export const Register: React.FC<RegisterProps> = ({
               Sign In
             </a>
           </div>
-        </div>
-
-        <div
-          style={{
-            marginTop: "24px",
-            padding: "12px",
-            backgroundColor: colors.bg.tertiary,
-            borderRadius: "8px",
-            textAlign: "center",
-          }}
-        >
-          <p
-            style={{
-              color: colors.text.secondary,
-              fontSize: "13px",
-              margin: 0,
-              lineHeight: "1.5",
-            }}
-          >
-            By signing up, you agree to our Terms of Service and Privacy Policy
-          </p>
         </div>
       </div>
     </div>

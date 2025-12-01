@@ -1,11 +1,11 @@
 import type { Contact, Message } from '../types';
 
 export const contacts: Contact[] = [
-  { id: 1, name: 'Alice Johnson', lastMessage: 'Hey! How are you doing?', time: '10:30 AM', unread: 3, avatar: '👩' },
-  { id: 2, name: 'Bob Smith', lastMessage: 'That sounds great!', time: 'Yesterday', avatar: '👨' },
-  { id: 3, name: 'Carol White', lastMessage: 'See you tomorrow 👋', time: 'Tuesday', avatar: '👩‍🦰' },
-  { id: 4, name: 'David Brown', lastMessage: 'Thanks for the help!', time: 'Monday', avatar: '👨‍🦱' },
-  { id: 5, name: 'Eva Green', lastMessage: 'Perfect timing!', time: 'Sunday', avatar: '👩‍🦳' },
+  { id: 1, name: 'Alice Johnson', lastMessage: 'Hey! How are you doing?', time: '10:30 AM', unread: 3, avatar: '👩', publicKey: '0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8' },
+  { id: 2, name: 'Bob Smith', lastMessage: 'That sounds great!', time: 'Yesterday', avatar: '👨', publicKey: '0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8' },
+  { id: 3, name: 'Carol White', lastMessage: 'See you tomorrow 👋', time: 'Tuesday', avatar: '👩‍🦰', publicKey: '0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8' },
+  { id: 4, name: 'David Brown', lastMessage: 'Thanks for the help!', time: 'Monday', avatar: '👨‍🦱', publicKey: '0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8' },
+  { id: 5, name: 'Eva Green', lastMessage: 'Perfect timing!', time: 'Sunday', avatar: '👩‍🦳', publicKey: '0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8' },
 ];
 
 export const chatMessages: Message[] = [

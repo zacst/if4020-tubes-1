@@ -2,19 +2,29 @@ import React, { useState } from "react";
 import { MessageCircle, MoreVertical } from "lucide-react";
 import { colors } from "../../theme/colors";
 
-export const SidebarHeader: React.FC = () => {
+interface SidebarHeaderProps {
+  onAddContact?: (username: string) => void;
+  onLogout?: () => void;
+}
+
+export const SidebarHeader: React.FC<SidebarHeaderProps> = ({ onAddContact, onLogout }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [newContact, setNewContact] = useState("");
 
   const handleLogout = () => {
-    console.log("Logging user out...");
-    setIsMenuOpen(false);
+    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('currentPrivateKey');
+    sessionStorage.removeItem('sessionToken');
+    
+    console.log("Logged user out");
+    if (onLogout) onLogout();
+    window.location.href = '/login';
   };
 
   const handleAddUser = () => {
     if (!newContact.trim()) return;
-    console.log(`Adding new user: ${newContact}`);
+    if (onAddContact) onAddContact(newContact);
     setNewContact("");
     setIsUserDropdownOpen(false);
   };

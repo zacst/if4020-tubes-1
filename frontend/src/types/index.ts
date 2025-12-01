@@ -5,6 +5,7 @@ export interface Contact {
   time: string;
   unread?: number;
   avatar: string;
+  publicKey: string;
 }
 
 export interface Message {
