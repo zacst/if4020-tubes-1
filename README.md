@@ -1,73 +1,74 @@
-# React + TypeScript + Vite
+# Secure Chat Application - Tugas Besar 1 IF4020 Kriptografi
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplikasi chat berbasis web yang mengimplementasikan **End-to-End Encryption (E2E)**, **Digital Signature (ECDSA)**, dan **Integrity Hash (SHA-3)** untuk menjamin kerahasiaan, autentikasi pengirim, serta integritas pesan secara *real-time*.
 
-Currently, two official plugins are available:
+Dibuat untuk memenuhi Tugas Besar 1 mata kuliah IF4020 Kriptografi.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 👥 Identitas Pembuat
 
-## React Compiler
+| NIM | Nama | Peran Utama |
+| :--- | :--- | :--- |
+| 18221005 | Nicholas Francis Aditjandra | **Identity & Auth** (Key Management, Login Flow) |
+| 13522008 | Ahmad Farid Mudrika | **Communication** (WebSocket/Transport, Database) |
+| 13522016 | Zachary Samuel Tobing | **Security Core** (Crypto Implementation, Integrity Check), **Frontend Pages** |
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## ✨ Daftar Fitur
 
-## Expanding the ESLint configuration
+### Fitur Utama
+* **Registrasi Aman:** Pembangkitan pasangan kunci (*Key Pair*) ECDSA dilakukan secara lokal di browser. Private key disimpan di `localStorage` dan tidak pernah dikirim ke server.
+* **Login Challenge-Response:** Autentikasi tanpa mengirim password, melainkan menggunakan tanda tangan digital terhadap *nonce* acak dari server.
+* **Real-time Chat:** Pengiriman pesan instan antar pengguna.
+* **Manajemen Kontak:** Menambah dan memilih lawan bicara.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Fitur Keamanan (Kriptografi)
+* 🔒 **End-to-End Encryption (E2E):** Pesan dienkripsi menggunakan **ECC (Elliptic Curve Cryptography)**. Hanya penerima yang memegang Private Key yang dapat membaca pesan.
+* ✍️ **Digital Signature:** Setiap pesan ditandatangani menggunakan **ECDSA** untuk menjamin keaslian pengirim (Non-repudiation).
+* 🛡️ **Integrity Check:** Menggunakan **SHA-3** untuk memastikan pesan tidak dimodifikasi di tengah jalan (*Tamper-proof*).
+* ✅ **Verifikasi Otomatis:**
+    * **Sisi Server:** Middleware menolak pesan jika Hash tidak cocok dengan Signature.
+    * **Sisi Client:** UI menampilkan status "✅ Verified" atau "❌ Unverified" pada setiap pesan.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🛠️ Teknologi yang Digunakan (Tech Stack)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+* **Frontend:** React, TypeScript, Tailwind CSS, Vite.
+* **Backend:** Go (Golang) dengan Framework **Fiber**.
+* **Database:** SQLite (Embedded, tanpa instalasi server tambahan).
+* **Library Kriptografi:**
+    * TS: `elliptic` (ECDSA), `js-sha3` (Hashing), `eciesjs` (Encryption).
+    * Go: `crypto/ecdsa`, `crypto/sha3`.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 🚀 Tata Cara Menjalankan Program
+
+Pastikan Anda telah menginstall **Go (v1.20+)** dan **Node.js (v18+)** pada komputer Anda.
+
+### 1. Menjalankan Backend (Server)
+Buka terminal dan arahkan ke folder `backend`:
+
+```
+cd backend
+
+# Install dependencies
+go mod tidy
+
+# Jalankan server
+go run cmd/main.go
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+_Server akan berjalan pada port default (misal: http://localhost:8080)._
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### 2. Menjalankan Frontend (Client)
+Buka terminal dan arahkan ke folder `frontend`:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+cd frontend
+
+# Install dependencies
+npm install
+
+# Jalankan mode development
+npm run dev
+```
+
+_Akses aplikasi melalui browser pada alamat yang muncul (biasanya http://localhost:5173)._
+
+_Disclaimer: Aplikasi ini dibuat untuk tujuan pendidikan. Implementasi penyimpanan Private Key di Local Storage memiliki risiko keamanan tersendiri jika diterapkan pada produksi nyata tanpa pengamanan tambahan._
