@@ -8,8 +8,12 @@ export const SidebarHeader: React.FC = () => {
   const [newContact, setNewContact] = useState("");
 
   const handleLogout = () => {
-    console.log("Logging user out...");
-    setIsMenuOpen(false);
+    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('currentPrivateKey');
+    sessionStorage.removeItem('sessionToken');
+    
+    console.log("Logged out - private key preserved in localStorage");
+    window.location.reload();
   };
 
   const handleAddUser = () => {

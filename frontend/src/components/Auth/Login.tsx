@@ -2,40 +2,164 @@ import React, { useState } from 'react';
 import { colors } from '../../theme/colors';
 import { InputField } from './InputField';
 import { Button } from './Button';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Loader } from 'lucide-react';
+import { 
+  generateKeyPairFromPassword, 
+  signMessage, 
+  getStoredPrivateKey, 
+  verifyPasswordMatchesKeys, 
+  hasUserRegistered 
+} from '../../utils/crypto';
 
 interface LoginProps {
-  onLogin: (username: string, password: string) => void;
+  onLogin: (username: string, token: string) => void;
   onSwitchToRegister: () => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [errors, setErrors] = useState<{ 
+    username?: string; 
+    password?: string;
+    general?: string 
+  }>({});
 
-  const validateForm = () => {
+  const validateCredentials = () => {
     const newErrors: { username?: string; password?: string } = {};
 
     if (!username) {
       newErrors.username = 'Username is required';
-    } else if (username.length < 5) {
-      newErrors.username = 'Username must be at least 5 characters';
+    } else if (username.length < 3) {
+      newErrors.username = 'Username must be at least 3 characters';
     }
 
     if (!password) {
       newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      onLogin(username, password);
+  const handleLogin = async () => {
+    if (!validateCredentials()) return;
+
+    setIsLoggingIn(true);
+    setErrors({});
+    
+    try {
+      // Optional: Check if user has registered locally
+      if (!hasUserRegistered(username)) {
+        console.log('User not found in local storage, checking server...');
+        // Continue anyway - server will check if user exists
+      }
+      
+      // Check if we have private key locally
+      const storedPrivateKey = getStoredPrivateKey(username);
+      if (!storedPrivateKey) {
+        throw new Error('No account found locally. Please register first.');
+      }
+      
+      // Verify password matches the stored private key
+      const passwordMatches = await verifyPasswordMatchesKeys(username, password);
+      if (!passwordMatches) {
+        throw new Error('Invalid password. Please check your credentials.');
+      }
+      
+      // Step 1: Get challenge from server
+      const challengeResponse = await fetch('http://localhost:3000/auth/login/challenge', { // Changed endpoint
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username })
+      });
+
+      let challengeResult;
+      const challengeText = await challengeResponse.text();
+      
+      try {
+        challengeResult = JSON.parse(challengeText);
+      } catch (parseError) {
+        console.error('Failed to parse challenge response:', challengeText);
+        throw new Error(`Server error: ${challengeText.substring(0, 100)}...`);
+      }
+
+      if (!challengeResponse.ok) {
+        if (challengeResponse.status === 404) {
+          throw new Error('User not found on server. Please register first.');
+        }
+        throw new Error(challengeResult.error || 'Failed to get challenge from server');
+      }
+
+      const { challenge } = challengeResult;
+      
+      if (!challenge) {
+        throw new Error('No challenge received from server');
+      }
+
+      // Step 2: Sign the challenge with our private key
+      const privateKey = storedPrivateKey;
+      console.log('Signing challenge with private key:', privateKey.substring(0, 20) + '...');
+
+      const signature = await signMessage(challenge, privateKey);
+      console.log('Generated signature:', signature.substring(0, 20) + '...');
+
+      // Step 3: Send signature for verification
+      const loginResponse = await fetch('http://localhost:3000/auth/login', { // Changed endpoint
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          username, 
+          challenge, 
+          signature 
+        })
+      });
+
+      let loginResult;
+      const loginText = await loginResponse.text();
+      
+      try {
+        loginResult = JSON.parse(loginText);
+      } catch (parseError) {
+        console.error('Failed to parse login response:', loginText);
+        throw new Error(`Server error: ${loginText.substring(0, 100)}...`);
+      }
+
+      if (!loginResponse.ok) {
+        throw new Error(loginResult.error || `Login failed with status ${loginResponse.status}`);
+      }
+
+      const { token } = loginResult;
+      
+      if (!token) {
+        throw new Error('No authentication token received');
+      }
+
+      // Store session data
+      sessionStorage.setItem('currentUser', username);
+      sessionStorage.setItem('currentPrivateKey', privateKey);
+      sessionStorage.setItem('sessionToken', token);
+      
+      // Mark user as registered locally (in case they registered on another device)
+      localStorage.setItem(`chatApp_hasRegistered_${username}`, 'true');
+      
+      console.log('Login successful!');
+      onLogin(username, token);
+      
+    } catch (error) {
+      console.error('Login error:', error);
+      setErrors({ 
+        general: error instanceof Error ? error.message : 'Login failed. Please try again.' 
+      });
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !isLoggingIn) {
+      handleLogin();
     }
   };
 
@@ -67,23 +191,45 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => 
             justifyContent: 'center',
             marginBottom: '20px'
           }}>
-            <MessageCircle size={40} color={colors.bg.primary} />
+            {isLoggingIn ? (
+              <Loader size={40} color={colors.bg.primary} className="spin" />
+            ) : (
+              <MessageCircle size={40} color={colors.bg.primary} />
+            )}
           </div>
           <h1 style={{ color: colors.text.primary, margin: 0, fontSize: '28px', fontWeight: 500 }}>
-            Welcome Back
+            {isLoggingIn ? 'Signing In...' : 'Welcome Back'}
           </h1>
-          <p style={{ color: colors.text.secondary, margin: '8px 0 0 0', fontSize: '15px' }}>
-            Sign in to continue to ChatApp
+          <p style={{ color: colors.text.secondary, margin: '8px 0 0 0', fontSize: '15px', textAlign: 'center' }}>
+            {isLoggingIn 
+              ? 'Verifying your identity...' 
+              : 'Sign in to continue to ChatApp'}
           </p>
         </div>
 
+        {errors.general && (
+          <div style={{
+            padding: '12px',
+            backgroundColor: colors.error + '20',
+            border: `1px solid ${colors.error}30`,
+            borderRadius: '8px',
+            marginBottom: '16px'
+          }}>
+            <p style={{ color: colors.error, margin: 0, fontSize: '14px', textAlign: 'center' }}>
+              {errors.general}
+            </p>
+          </div>
+        )}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <InputField
-            type="username"
+            type="text"
             placeholder="Username"
             value={username}
             onChange={setUsername}
             error={errors.username}
+            disabled={isLoggingIn}
+            onKeyPress={handleKeyPress}
           />
 
           <InputField
@@ -92,15 +238,16 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => 
             value={password}
             onChange={setPassword}
             error={errors.password}
+            disabled={isLoggingIn}
+            onKeyPress={handleKeyPress}
           />
 
-          <div style={{ textAlign: 'right', marginTop: '-4px' }}>
-            <a href="#" style={{ color: colors.accent.primary, fontSize: '14px', textDecoration: 'none' }}>
-              Forgot password?
-            </a>
-          </div>
-
-          <Button text="Sign In" onClick={handleSubmit} variant="primary" />
+          <Button 
+            text={isLoggingIn ? "Signing In..." : "Sign In"} 
+            onClick={handleLogin} 
+            variant="primary" 
+            disabled={isLoggingIn}
+          />
 
           <div style={{ textAlign: 'center', marginTop: '8px' }}>
             <span style={{ color: colors.text.secondary, fontSize: '14px' }}>
@@ -115,6 +262,23 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => 
             </a>
           </div>
         </div>
+
+        {isLoggingIn && (
+          <div style={{
+            marginTop: '16px',
+            padding: '12px',
+            backgroundColor: colors.accent.primary + '20',
+            borderRadius: '8px',
+            border: `1px solid ${colors.accent.primary}30`
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <Loader size={16} color={colors.accent.primary} className="spin" />
+              <span style={{ color: colors.accent.primary, fontSize: '12px', fontWeight: 500 }}>
+                Performing cryptographic verification...
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

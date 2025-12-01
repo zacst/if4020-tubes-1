@@ -6,9 +6,16 @@ interface ButtonProps {
   onClick: () => void;
   variant?: 'primary' | 'secondary';
   disabled?: boolean;
+  style?: React.CSSProperties;
 }
 
-export const Button: React.FC<ButtonProps> = ({ text, onClick, variant = 'primary', disabled = false }) => {
+export const Button: React.FC<ButtonProps> = ({ 
+  text, 
+  onClick, 
+  variant = 'primary', 
+  disabled = false,
+  style = {}
+}) => {
   const [isHovered, setIsHovered] = useState(false);
 
   const isPrimary = variant === 'primary';
@@ -35,6 +42,7 @@ export const Button: React.FC<ButtonProps> = ({ text, onClick, variant = 'primar
         cursor: disabled ? 'not-allowed' : 'pointer',
         transition: 'all 0.2s',
         boxSizing: 'border-box',
+        ...style
       }}
     >
       {text}
