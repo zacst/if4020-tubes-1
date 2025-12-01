@@ -12,8 +12,8 @@ export const SidebarHeader: React.FC = () => {
     sessionStorage.removeItem('currentPrivateKey');
     sessionStorage.removeItem('sessionToken');
     
-    console.log("Logged out - private key preserved in localStorage");
-    window.location.reload();
+    console.log("Logged out - private key still in localStorage");
+    window.location.href = '/login';
   };
 
   const handleAddUser = () => {
