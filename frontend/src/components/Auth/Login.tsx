@@ -7,7 +7,9 @@ import {
   signMessage, 
   getStoredPrivateKey, 
   verifyPasswordMatchesKeys, 
-  hasUserRegistered 
+  hasUserRegistered,
+  generateKeyPairFromPassword,
+  storeKeyPair
 } from '../../utils/crypto';
 
 interface LoginProps {
@@ -52,19 +54,26 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => 
       // Optional: Check if user has registered locally
       if (!hasUserRegistered(username)) {
         console.log('User not found in local storage, checking server...');
-        // Continue anyway - server will check if user exists
       }
       
+      let privateKey: string;
+      let generatedKeyPair = null;
+
       // Check if we have private key locally
       const storedPrivateKey = getStoredPrivateKey(username);
-      if (!storedPrivateKey) {
-        throw new Error('No account found locally. Please register first.');
-      }
       
-      // Verify password matches the stored private key
-      const passwordMatches = await verifyPasswordMatchesKeys(username, password);
-      if (!passwordMatches) {
-        throw new Error('Invalid password. Please check your credentials.');
+      if (storedPrivateKey) {
+        // Verify password matches the stored private key
+        const passwordMatches = await verifyPasswordMatchesKeys(username, password);
+        if (!passwordMatches) {
+          throw new Error('Invalid password. Please check your credentials.');
+        }
+        privateKey = storedPrivateKey;
+      } else {
+        // No local key, try to regenerate from password
+        console.log('No local key found, regenerating from password...');
+        generatedKeyPair = await generateKeyPairFromPassword(password);
+        privateKey = generatedKeyPair.privateKey;
       }
       
       // Step 1: Get challenge from server
@@ -99,7 +108,6 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => 
       }
 
       // Step 2: Sign the challenge with our private key
-      const privateKey = storedPrivateKey;
       console.log('Signing challenge with private key:', privateKey.substring(0, 20) + '...');
 
       // signMessage returns {r, s} object
@@ -141,6 +149,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => 
       sessionStorage.setItem('currentPrivateKey', privateKey);
       sessionStorage.setItem('sessionToken', token);
       
+      // If we generated a new key pair (recovered account), store it now that login succeeded
+      if (generatedKeyPair) {
+        storeKeyPair(username, generatedKeyPair);
+      }
+
       // Mark user as registered locally (in case they registered on another device)
       localStorage.setItem(`chatApp_hasRegistered_${username}`, 'true');
       

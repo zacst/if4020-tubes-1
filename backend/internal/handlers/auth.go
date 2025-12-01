@@ -94,7 +94,7 @@ func LoginVerify(c *fiber.Ctx) error {
 	}
 
 	// Verify Signature
-	// Note: The client signs the HASH of the nonce usually.
+	
 	// Let's assume client signs Hash(nonce).
 	hash := crypto.HashMessage([]byte(nonce))
 	valid, err := crypto.VerifySignature(hash, req.Signature.R, req.Signature.S, publicKey)

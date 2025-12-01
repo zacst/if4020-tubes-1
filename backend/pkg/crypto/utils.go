@@ -35,6 +35,6 @@ func VerifySignature(hash []byte, rHex, sHex, pubKeyHex string) (bool, error) {
 	signature := append(rBytes, sBytes...)
 
 	// 3. Verify using go-ethereum's crypto (Handles secp256k1)
-	// Note: Strip the last byte if signature contained 'v', but here we manually built R+S (64 bytes)
+
 	return crypto.VerifySignature(pubKeyBytes, hash, signature), nil
 }

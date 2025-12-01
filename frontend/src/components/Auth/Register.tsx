@@ -67,7 +67,7 @@ export const Register: React.FC<RegisterProps> = ({
       // Store keys locally first
       storeKeyPair(username, keyPair);
       
-      // Send registration request - NOTE: Changed endpoint to /auth/register
+      // Send registration request 
       const response = await fetch('http://localhost:3000/auth/register', {
         method: 'POST',
         headers: {
@@ -75,7 +75,7 @@ export const Register: React.FC<RegisterProps> = ({
         },
         body: JSON.stringify({
           username: username,
-          publicKey: keyPair.publicKey  // Note the lowercase 'k' to match backend
+          publicKey: keyPair.publicKey 
         }),
       });
 

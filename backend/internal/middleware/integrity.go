@@ -8,7 +8,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// Note: Modify according to the incoming packet structure
 type IncomingPacket struct {
 	EncryptedData string `json:"encryptedData"`
 	Signature     struct {
@@ -32,7 +31,6 @@ func IntegrityCheck(c *fiber.Ctx) error {
 	}
 
 	// 3. Re-Hash the EncryptedData
-	// Note: Ensure Frontend signs the HASH of 'encryptedData' string
 	hash := crypto.HashMessage([]byte(packet.EncryptedData))
 
 	// 4. Verify Signature
