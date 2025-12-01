@@ -28,12 +28,13 @@ func Register(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request"})
 	}
 
-	_, err := database.DB.Exec("INSERT INTO users (username, public_key) VALUES (?, ?)", req.Username, req.PublicKey)
+	result, err := database.DB.Exec("INSERT INTO users (username, public_key) VALUES (?, ?)", req.Username, req.PublicKey)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not register user"})
 	}
 
-	return c.JSON(fiber.Map{"status": "User registered"})
+	id, _ := result.LastInsertId()
+	return c.JSON(fiber.Map{"status": "User registered", "userId": id})
 }
 
 func LoginChallenge(c *fiber.Ctx) error {

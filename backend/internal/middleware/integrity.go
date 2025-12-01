@@ -3,8 +3,9 @@ package middleware
 import (
 	"encoding/json"
 
-	"github.com/gofiber/fiber/v2"
 	"if4020-tubes-1/backend/pkg/crypto"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 // Note: Modify according to the incoming packet structure

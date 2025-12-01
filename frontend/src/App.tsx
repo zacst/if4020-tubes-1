@@ -6,7 +6,7 @@ import { ChatArea } from './components/Chat/ChatArea';
 import { Login } from './components/Auth/Login';
 import { Register } from './components/Auth/Register';
 import * as api from './utils/api';
-import * as crypto from './utils/crypto';
+import { getCurrentUserKeyPair } from './utils/crypto';
 
 type AuthView = 'login' | 'register' | 'chat';
 
@@ -16,35 +16,44 @@ const App: React.FC = () => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [currentUser, setCurrentUser] = useState<{username: string, privateKey: string, publicKey: string} | null>(null);
 
-  const handleLogin = async (username: string, password: string) => {
-    try {
-      const keys = crypto.generateKeys(password);
-      const { data: { nonce } } = await api.loginChallenge(username);
-      const hash = crypto.hashMessage(nonce);
-      const signature = crypto.signMessage(hash, keys.privateKey);
-      const { data } = await api.loginVerify(username, signature as any);
-      
-      localStorage.setItem('token', data.token);
-      
-      setCurrentUser({ username, privateKey: keys.privateKey, publicKey: keys.publicKey });
+  // Check for existing session on load
+  useEffect(() => {
+    const token = sessionStorage.getItem('sessionToken');
+    const username = sessionStorage.getItem('currentUser');
+    
+    if (token && username) {
+      const keys = getCurrentUserKeyPair();
+      if (keys) {
+        setCurrentUser({ 
+          username, 
+          privateKey: keys.privateKey, 
+          publicKey: keys.publicKey 
+        });
+        setAuthView('chat');
+        fetchContacts();
+      }
+    }
+  }, []);
+
+  const handleLogin = (username: string, _token: string) => {
+    const keys = getCurrentUserKeyPair();
+    if (keys) {
+      setCurrentUser({ 
+        username, 
+        privateKey: keys.privateKey, 
+        publicKey: keys.publicKey 
+      });
       setAuthView('chat');
       fetchContacts();
-    } catch (error) {
-      console.error("Login failed", error);
-      alert("Login failed");
+    } else {
+      console.error("Login successful but keys not found in storage");
+      // Should probably logout or show error
     }
   };
 
-  const handleRegister = async (username: string, password: string) => {
-    try {
-      const keys = crypto.generateKeys(password);
-      await api.register(username, keys.publicKey);
-      alert("Registered successfully! Please login.");
-      setAuthView('login');
-    } catch (error) {
-      console.error("Register failed", error);
-      alert("Registration failed");
-    }
+  const handleRegister = (_username: string, _publicKey: string) => {
+    // Registration successful, switch to login
+    setAuthView('login');
   };
 
   const fetchContacts = async () => {
@@ -65,7 +74,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    sessionStorage.clear();
     setCurrentUser(null);
     setAuthView('login');
   };

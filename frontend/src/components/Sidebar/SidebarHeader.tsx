@@ -13,9 +13,13 @@ export const SidebarHeader: React.FC<SidebarHeaderProps> = ({ onAddContact, onLo
   const [newContact, setNewContact] = useState("");
 
   const handleLogout = () => {
-    console.log("Logging user out...");
-    setIsMenuOpen(false);
+    sessionStorage.removeItem('currentUser');
+    sessionStorage.removeItem('currentPrivateKey');
+    sessionStorage.removeItem('sessionToken');
+    
+    console.log("Logged user out");
     if (onLogout) onLogout();
+    window.location.href = '/login';
   };
 
   const handleAddUser = () => {
