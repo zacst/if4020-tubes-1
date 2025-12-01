@@ -1,15 +1,26 @@
-import { sha3_512 } from 'js-sha3';
+import { sha3_256 } from 'js-sha3';
 import { ec as EC } from 'elliptic';
 import CryptoJS from 'crypto-js';
 
 // Initialize Elliptic Curve (secp256k1 as most commonly used)
 const ec = new EC('secp256k1');
 
+export const generateKeys = (password: string) => {
+  // Simple KDF (In real world use PBKDF2/Scrypt)
+  // Here we just hash the password to get a seed
+  const seed = sha3_256(password); 
+  const key = ec.keyFromPrivate(seed);
+  return {
+    privateKey: key.getPrivate('hex'),
+    publicKey: key.getPublic('hex')
+  };
+};
+
 // --- Hashing Function ---
 
 export const hashMessage = (text: string): string => {
-  // SHA3-512
-  return sha3_512(text);
+  // SHA3-256
+  return sha3_256(text);
 };
 
 // --- Signing Functions (ECDSA) ---
@@ -18,13 +29,14 @@ export const signMessage = (hash: string, privateKey: string): object => {
   // Load the private key from hex string
   const key = ec.keyFromPrivate(privateKey);
   
-  // Sign the hash
-  const signature = key.sign(hash);
+  // Sign the hash with canonical option to ensure Low-S (required by go-ethereum)
+  const signature = key.sign(hash, { canonical: true });
   
   // Return r and s values (standard ECDSA output)
+  // Pad with leading zeros to ensure 32 bytes (64 hex chars)
   return { 
-    r: signature.r.toString(16), 
-    s: signature.s.toString(16) 
+    r: signature.r.toString(16).padStart(64, '0'), 
+    s: signature.s.toString(16).padStart(64, '0') 
   };
 };
 
@@ -41,38 +53,28 @@ export const verifySignature = (hash: string, signature: any, publicKey: string)
   }
 };
 
-// --- Encryption Functions (ECIES: ECDH + AES) ---
+// --- Encryption Functions (Static ECDH + AES) ---
 
-export const encryptMessage = (text: string, publicKey: string): string => {
-  // 1. Generate a temporary (ephemeral) key pair for this specific message
-  const ephemeralKey = ec.genKeyPair();
+export const encryptMessage = (text: string, recipientPublicKey: string, senderPrivateKey: string): string => {
+  // 1. Derive the Shared Secret: (My Private Key + Recipient Public Key)
+  const myKey = ec.keyFromPrivate(senderPrivateKey);
+  const recipientKey = ec.keyFromPublic(recipientPublicKey, 'hex');
+  const sharedSecret = myKey.derive(recipientKey.getPublic()).toString(16);
   
-  // 2. Derive the Shared Secret: (Ephemeral Private Key + Recipient Public Key)
-  const recipientKey = ec.keyFromPublic(publicKey, 'hex');
-  const sharedSecret = ephemeralKey.derive(recipientKey.getPublic()).toString(16);
-  
-  // 3. Encrypt the text using AES and the Shared Secret
+  // 2. Encrypt the text using AES and the Shared Secret
   const encryptedText = CryptoJS.AES.encrypt(text, sharedSecret).toString();
   
-  // 4. Return the Ephemeral Public Key + Separator + Encrypted Text
-  // (The recipient needs the ephemeral public key to reconstruct the secret)
-  return ephemeralKey.getPublic(true, 'hex') + "?iv=" + encryptedText;
+  // 3. Return just the encrypted text
+  return encryptedText;
 };
 
-export const decryptMessage = (encryptedPackage: string, privateKey: string): string => {
-  // 1. Split the package to get the Ephemeral Public Key and the Ciphertext
-  const [ephemeralPublicKeyHex, encryptedText] = encryptedPackage.split("?iv=");
+export const decryptMessage = (encryptedText: string, myPrivateKey: string, otherPartyPublicKey: string): string => {
+  // 1. Derive the Shared Secret: (My Private Key + Other Party Public Key)
+  const myKey = ec.keyFromPrivate(myPrivateKey);
+  const otherKey = ec.keyFromPublic(otherPartyPublicKey, 'hex');
+  const sharedSecret = myKey.derive(otherKey.getPublic()).toString(16);
   
-  if (!ephemeralPublicKeyHex || !encryptedText) {
-    throw new Error("Invalid encrypted message format");
-  }
-
-  // 2. Derive the Shared Secret: (My Private Key + Sender's Ephemeral Public Key)
-  const myKey = ec.keyFromPrivate(privateKey);
-  const senderKey = ec.keyFromPublic(ephemeralPublicKeyHex, 'hex');
-  const sharedSecret = myKey.derive(senderKey.getPublic()).toString(16);
-  
-  // 3. Decrypt the text using AES and the Shared Secret
+  // 2. Decrypt the text using AES and the Shared Secret
   const bytes = CryptoJS.AES.decrypt(encryptedText, sharedSecret);
   const originalText = bytes.toString(CryptoJS.enc.Utf8);
   

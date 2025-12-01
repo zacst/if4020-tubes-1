@@ -13,6 +13,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
+  const [isLoading, setIsLoading] = useState(false);
 
   const validateForm = () => {
     const newErrors: { username?: string; password?: string } = {};
@@ -33,9 +34,16 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => 
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (validateForm()) {
-      onLogin(username, password);
+      setIsLoading(true);
+      try {
+        await onLogin(username, password);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -100,7 +108,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSwitchToRegister }) => 
             </a>
           </div>
 
-          <Button text="Sign In" onClick={handleSubmit} variant="primary" />
+          <Button text={isLoading ? "Signing In..." : "Sign In"} onClick={handleSubmit} variant="primary" disabled={isLoading} />
 
           <div style={{ textAlign: 'center', marginTop: '8px' }}>
             <span style={{ color: colors.text.secondary, fontSize: '14px' }}>

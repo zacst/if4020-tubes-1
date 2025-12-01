@@ -5,11 +5,13 @@ import { colors } from "../../theme/colors";
 interface ChatInputProps {
   message: string;
   onMessageChange: (message: string) => void;
+  onSend: () => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
   message,
   onMessageChange,
+  onSend,
 }) => {
   return (
     <div
@@ -26,6 +28,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         placeholder="Type a message"
         value={message}
         onChange={(e) => onMessageChange(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && onSend()}
         style={{
           flex: 1,
           backgroundColor: colors.bg.tertiary,
@@ -42,6 +45,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           size={24}
           color={colors.accent.primary}
           style={{ cursor: "pointer" }}
+          onClick={onSend}
         />
       ) : (
         <Send size={24} color={colors.accent.secondary} />

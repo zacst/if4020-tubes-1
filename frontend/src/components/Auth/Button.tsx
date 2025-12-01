@@ -35,6 +35,7 @@ export const Button: React.FC<ButtonProps> = ({ text, onClick, variant = 'primar
         cursor: disabled ? 'not-allowed' : 'pointer',
         transition: 'all 0.2s',
         boxSizing: 'border-box',
+        opacity: disabled ? 0.7 : 1,
       }}
     >
       {text}
